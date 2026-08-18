@@ -193,6 +193,9 @@ let charts = {};
 
 const uid = () => `${Date.now().toString(36)}${Math.random().toString(36).slice(2,8)}`;
 const todayStr = () => new Date().toISOString().slice(0,10);
+function escapeHtml(str) {
+  return String(str ?? '').replace(/[&<>"']/g, (c) => ({ '&':'&amp;', '<':'&lt;', '>':'&gt;', '"':'&quot;', "'":'&#39;' }[c]));
+}
 const fmtUSD = (n) => { const v = Number(n)||0; const sign = v>0?'+':v<0?'-':''; return `${sign}$${Math.abs(v).toLocaleString(undefined,{minimumFractionDigits:2,maximumFractionDigits:2})}`; };
 const fmtNum = (n,d=2) => Number.isFinite(n) ? Number(n).toFixed(d) : '—';
 const clamp = (n,lo,hi) => Math.min(hi, Math.max(lo, n));
@@ -328,7 +331,7 @@ function render() {
     <div class="stat-card"><div class="stat-label">總損益</div><div class="stat-value ${totalPnl>0?'pos':totalPnl<0?'neg':''}">${fmtUSD(totalPnl)}</div><div class="stat-sub">${RANGE_LABEL[state.range]} · ${filtered.length} 筆</div></div>
     <div class="stat-card"><div class="stat-label">勝率</div><div class="stat-value">${filtered.length?fmtNum(winCount/filtered.length*100,0):'—'}%</div><div class="stat-sub">${winCount} 勝 / ${lossCount} 敗</div></div>
     <div class="stat-card"><div class="stat-label">平均 RR</div><div class="stat-value">${rrs.length?fmtNum(rrs.reduce((a,b)=>a+b,0)/rrs.length):'—'}</div><div class="stat-sub">依停損/出場價計算</div></div>
-    <div class="stat-card"><div class="stat-label">最佳策略</div><div class="stat-value" style="font-size:15px;">${bestSetup?bestSetup[0]:'—'}</div><div class="stat-sub">${bestSetup?fmtUSD(bestSetup[1]):'尚無資料'}</div></div>`;
+    <div class="stat-card"><div class="stat-label">最佳策略</div><div class="stat-value" style="font-size:15px;">${bestSetup?escapeHtml(bestSetup[0]):'—'}</div><div class="stat-sub">${bestSetup?fmtUSD(bestSetup[1]):'尚無資料'}</div></div>`;
 
   const rangeGroup = document.getElementById('range-group');
   rangeGroup.innerHTML = RANGE_KEYS.map(k => `<button class="range-btn ${state.range===k?'on':''}" data-range="${k}">${RANGE_LABEL[k]}</button>`).join('');
@@ -340,13 +343,13 @@ function render() {
   } else {
     tbody.innerHTML = filtered.map(t => {
       const rr = computeRR(t);
-      return `<tr data-id="${t.id}">
-        <td class="mono-cell">${t.date}</td><td>${t.symbol}</td>
-        <td><span class="badge ${t.direction}">${t.direction==='long'?'多':'空'}</span></td>
-        <td>${t.setup||'—'}</td><td class="mono-cell">${t.entryPrice||'—'}</td><td class="mono-cell">${t.exitPrice||'—'}</td>
+      return `<tr data-id="${escapeHtml(t.id)}">
+        <td class="mono-cell">${escapeHtml(t.date)}</td><td>${escapeHtml(t.symbol)}</td>
+        <td><span class="badge ${t.direction==='long'?'long':'short'}">${t.direction==='long'?'多':'空'}</span></td>
+        <td>${escapeHtml(t.setup)||'—'}</td><td class="mono-cell">${escapeHtml(t.entryPrice)||'—'}</td><td class="mono-cell">${escapeHtml(t.exitPrice)||'—'}</td>
         <td class="mono-cell ${Number(t.pnl)>0?'pos':Number(t.pnl)<0?'neg':''}">${fmtUSD(t.pnl)}</td>
         <td class="mono-cell">${rr!==null?rr.toFixed(2)+'R':'—'}</td>
-        <td>${t.emotion||'—'}</td><td>${(t.mistake&&t.mistake!=='無錯誤')?t.mistake:'—'}</td>
+        <td>${escapeHtml(t.emotion)||'—'}</td><td>${(t.mistake&&t.mistake!=='無錯誤')?escapeHtml(t.mistake):'—'}</td>
         <td><button class="icon-btn edit-btn">編輯</button> <button class="icon-btn del-btn" style="color:var(--short);">刪除</button></td>
       </tr>`;
     }).join('');
@@ -404,36 +407,36 @@ function openModal(trade) {
       <div class="modal-head"><h2>${t.id?'編輯交易':'新增交易'}</h2><button class="icon-btn" id="close-modal">✕</button></div>
       <div class="modal-body">
         <div class="grid-3">
-          <div class="field"><span class="field-label">日期</span><input type="date" id="f-date" value="${t.date}"></div>
-          <div class="field"><span class="field-label">時間</span><input type="time" id="f-time" value="${t.time||''}"></div>
+          <div class="field"><span class="field-label">日期</span><input type="date" id="f-date" value="${escapeHtml(t.date)}"></div>
+          <div class="field"><span class="field-label">時間</span><input type="time" id="f-time" value="${escapeHtml(t.time)}"></div>
           <div class="field"><span class="field-label">時段</span><select id="f-session">${SESSIONS.map(s=>`<option ${t.session===s?'selected':''}>${s}</option>`).join('')}</select></div>
         </div>
         <div class="grid-3">
-          <div class="field"><span class="field-label">幣種</span><input id="f-symbol" list="symlist" value="${t.symbol}"><datalist id="symlist">${SYMBOLS.map(s=>`<option value="${s}">`).join('')}</datalist></div>
+          <div class="field"><span class="field-label">幣種</span><input id="f-symbol" list="symlist" value="${escapeHtml(t.symbol)}"><datalist id="symlist">${SYMBOLS.map(s=>`<option value="${s}">`).join('')}</datalist></div>
           <div class="field"><span class="field-label">方向</span><div class="dir-toggle">
             <div class="dir long ${t.direction==='long'?'on':''}" id="dir-long">做多</div>
             <div class="dir short ${t.direction==='short'?'on':''}" id="dir-short">做空</div>
           </div></div>
-          <div class="field"><span class="field-label">策略 Setup</span><input id="f-setup" value="${t.setup||''}"></div>
+          <div class="field"><span class="field-label">策略 Setup</span><input id="f-setup" value="${escapeHtml(t.setup)}"></div>
         </div>
         <div class="grid-4">
-          <div class="field"><span class="field-label">進場價</span><input type="number" step="any" id="f-entry" value="${t.entryPrice||''}"></div>
-          <div class="field"><span class="field-label">出場價</span><input type="number" step="any" id="f-exit" value="${t.exitPrice||''}"></div>
-          <div class="field"><span class="field-label">停損價</span><input type="number" step="any" id="f-stop" value="${t.stopLoss||''}"></div>
-          <div class="field"><span class="field-label">停利價</span><input type="number" step="any" id="f-tp" value="${t.takeProfit||''}"></div>
+          <div class="field"><span class="field-label">進場價</span><input type="number" step="any" id="f-entry" value="${escapeHtml(t.entryPrice)}"></div>
+          <div class="field"><span class="field-label">出場價</span><input type="number" step="any" id="f-exit" value="${escapeHtml(t.exitPrice)}"></div>
+          <div class="field"><span class="field-label">停損價</span><input type="number" step="any" id="f-stop" value="${escapeHtml(t.stopLoss)}"></div>
+          <div class="field"><span class="field-label">停利價</span><input type="number" step="any" id="f-tp" value="${escapeHtml(t.takeProfit)}"></div>
         </div>
         <div class="grid-3">
-          <div class="field"><span class="field-label">倉位 (USD 名目)</span><input type="number" step="any" id="f-size" value="${t.size||''}"></div>
-          <div class="field"><span class="field-label">手續費 (USD)</span><input type="number" step="any" id="f-comm" value="${t.commission||''}"></div>
-          <div class="field"><span class="field-label">損益 PnL (USD)</span><input type="number" step="any" id="f-pnl" value="${t.pnl||''}"></div>
+          <div class="field"><span class="field-label">倉位 (USD 名目)</span><input type="number" step="any" id="f-size" value="${escapeHtml(t.size)}"></div>
+          <div class="field"><span class="field-label">手續費 (USD)</span><input type="number" step="any" id="f-comm" value="${escapeHtml(t.commission)}"></div>
+          <div class="field"><span class="field-label">損益 PnL (USD)</span><input type="number" step="any" id="f-pnl" value="${escapeHtml(t.pnl)}"></div>
         </div>
         <div class="grid-2">
           <div class="field"><span class="field-label">情緒</span><select id="f-emotion">${EMOTIONS.map(e=>`<option ${t.emotion===e?'selected':''}>${e}</option>`).join('')}</select></div>
           <div class="field"><span class="field-label">錯誤類型</span><select id="f-mistake">${MISTAKES.map(m=>`<option ${t.mistake===m?'selected':''}>${m}</option>`).join('')}</select></div>
         </div>
-        <div class="field"><span class="field-label">進場理由</span><textarea rows="2" id="f-entryreason">${t.entryReason||''}</textarea></div>
-        <div class="field"><span class="field-label">出場理由</span><textarea rows="2" id="f-exitreason">${t.exitReason||''}</textarea></div>
-        <div class="field"><span class="field-label">覆盤筆記</span><textarea rows="3" id="f-notes">${t.reviewNotes||''}</textarea></div>
+        <div class="field"><span class="field-label">進場理由</span><textarea rows="2" id="f-entryreason">${escapeHtml(t.entryReason)}</textarea></div>
+        <div class="field"><span class="field-label">出場理由</span><textarea rows="2" id="f-exitreason">${escapeHtml(t.exitReason)}</textarea></div>
+        <div class="field"><span class="field-label">覆盤筆記</span><textarea rows="3" id="f-notes">${escapeHtml(t.reviewNotes)}</textarea></div>
       </div>
       <div class="modal-foot"><button class="btn btn-ghost" id="cancel-modal">取消</button><button class="btn btn-primary" id="save-modal">${t.id?'儲存變更':'記錄交易'}</button></div>
     </div>
